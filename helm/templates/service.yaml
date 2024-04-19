@@ -1,0 +1,27 @@
+{{- $dot := . }}
+{{- range $value := .Values.services | default dict }}
+{{- if $value.service }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ $value.service.name }}"
+  namespace: "{{ $value.nameSpace }}"
+  labels:
+    app: "{{ $value.name }}"
+    chart: "{{ $dot.Chart.Name }}"
+    version: "{{ $dot.Chart.Version }}"
+spec:
+  type: {{ $value.service.type }}
+  ports:
+  - port: {{ $value.service.externalPort }}
+    targetPort: {{ $value.service.internalPort }}
+    protocol: TCP
+  selector:
+    app: "{{ $value.name }}"
+    chart: "{{ $dot.Chart.Name }}"
+    version: "{{ $dot.Chart.Version }}"
+{{- end }}
+{{- end }}
+
+

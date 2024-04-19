@@ -1,0 +1,229 @@
+# Default values for nestjs.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+kong:
+  name: nestjs-ms-ingress
+  env:
+    database: "off"
+  ingressController:
+    enabled: true
+    ingressClass: kong
+  admin:
+    tls:
+      parameters: []
+  paths:
+    - path: /auth
+      pathType: Prefix
+      name: auth-service
+      port: 9001
+    - path: /post
+      pathType: Prefix
+      name: post-service
+      port: 9002
+    - path: /files
+      pathType: Prefix
+      name: files-service
+      port: 9003
+    - path: /notification
+      pathType: Prefix
+      name: notification-service
+      port: 9004
+
+services:
+  - replicaCount: 1
+    name: auth
+    nameSpace: default
+    image:
+      repository: nestjs-ms_auth
+      tag: latest
+      pullPolicy: Never
+    deployment:
+      restartPolicy: Always
+    env:
+      - key: NODE_ENV
+        value: development
+      - key: PORT
+        value: "9001"
+      - key: TOKEN_EXP
+        value: 86400s
+      - key: AUTH_SECRET
+        value: my_secret_key
+      - key: RABBITMQ_URL
+        value: amqp://admin:master123@host.minikube.internal:5672
+      - key: RABBITMQ_TOKEN_QUEUE
+        value: token_queue
+      - key: RABBITMQ_MAILER_QUEUE
+        value: mailer_queue
+      - key: RABBITMQ_FILES_QUEUE
+        value: files_queue
+      - key: RABBITMQ_AUTH_QUEUE
+        value: auth_queue
+      - key: RABBITMQ_NOTIFICATION_QUEUE
+        value: notification_queue
+      - key: DATABASE_URL
+        value: "postgresql://admin:master123@host.minikube.internal:5432/user-db?schema=public"
+      - key: AWS_COGNITO_USER_POOL_ID
+        value: ap-south-1_gR5KggzuW
+      - key: AWS_COGNITO_AUTHORITY
+        value: https://cognito-idp.ap-south-1.amazonaws.com
+      - key: AWS_COGNITO_CLIENT_ID
+        value: 5vqpp7t39j2vl5lr9vjmcmurjq
+    service:
+      name: auth-service
+      type: ClusterIP
+      externalPort: 9001
+      internalPort: 9001
+    resources:
+      {}
+      # We usually recommend not to specify default resources and to leave this as a conscious
+      # choice for the user. This also increases chances charts run on environments with little
+      # resources, such as Minikube. If you do want to specify resources, uncomment the following
+      # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # limits:
+      #  cpu: 100m
+      #  memory: 128Mi
+      # requests:
+      #  cpu: 100m
+      #  memory: 128Mi
+  - replicaCount: 1
+    name: files
+    nameSpace: default
+    image:
+      repository: nestjs-ms_files
+      tag: latest
+      pullPolicy: IfNotPresent
+    deployment:
+      restartPolicy: Always
+    env:
+      - key: NODE_ENV
+        value: development
+      - key: PORT
+        value: "9003"
+      - key: RABBITMQ_URL
+        value: amqp://admin:master123@host.minikube.internal:5672
+      - key: RABBITMQ_FILES_QUEUE
+        value: files_queue
+      - key: RABBITMQ_AUTH_QUEUE
+        value: auth_queue
+      - key: DATABASE_URL
+        value: mongodb://host.minikube.internal:27017/files-db
+      - key: AWS_EXPIRE_LINK
+        value: ""
+      - key: AWS_ACCESS_KEY
+        value: ""
+      - key: AWS_SECRET_KEY
+        value: ""
+      - key: AWS_REGION
+        value: ""
+      - key: AWS_BUCKET
+        value: ""
+    service:
+      name: files-service
+      type: ClusterIP
+      externalPort: 9003
+      internalPort: 9003
+    resources: {}
+  - replicaCount: 1
+    name: notification
+    nameSpace: default
+    image:
+      repository: nestjs-ms_notification
+      tag: latest
+      pullPolicy: IfNotPresent
+    deployment:
+      restartPolicy: Always
+    env:
+      - key: PORT
+        value: "9004"
+      - key: NODE_ENV
+        value: development
+      - key: RABBITMQ_URL
+        value: amqp://admin:master123@host.minikube.internal:5672
+      - key: RABBITMQ_AUTH_QUEUE
+        value: auth_queue
+      - key: RABBITMQ_NOTIFICATION_QUEUE
+        value: notification_queue
+      - key: DATABASE_URL
+        value: mongodb://host.minikube.internal:27017/notificaiton-db
+      - key: REDIS_HOST
+        value: host.minikube.internal
+      - key: REDIS_PORT
+        value: "6379"
+      - key: REDIS_PASSWORD
+        value: master123
+    service:
+      name: notification-service
+      type: ClusterIP
+      externalPort: 9004
+      internalPort: 9004
+    resources: {}
+  - replicaCount: 1
+    name: post
+    nameSpace: default
+    image:
+      repository: nestjs-ms_post
+      tag: latest
+      pullPolicy: IfNotPresent
+    deployment:
+      restartPolicy: Always
+    env:
+      - key: PORT
+        value: "9002"
+      - key: NODE_ENV
+        value: development
+      - key: RABBITMQ_URL
+        value: amqp://admin:master123@host.minikube.internal:5672
+      - key: RABBITMQ_AUTH_QUEUE
+        value: auth_queue
+      - key: RABBITMQ_MAILER_QUEUE
+        value: mailer_queue
+      - key: RABBITMQ_POST_QUEUE
+        value: post_queue
+      - key: DATABASE_URL
+        value: postgresql://admin:master123@host.minikube.internal:5432/post-db?schema=public
+    service:
+      name: post-service
+      type: ClusterIP
+      externalPort: 9002
+      internalPort: 9002
+    resources: {}
+
+loki-stack:
+  loki:
+    enabled: true
+    replicas: 1
+    persistence:
+      enabled: false
+      storageClassName: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 10Gi
+    service:
+      type: ClusterIP
+      port: 3100
+    extraArgs: {}
+  grafana:
+    enabled: true
+    replicas: 1
+    # grafana.ini:
+    #   server:
+    #     root_url: grafana.domain
+    # ingress:
+    #   enabled: true
+    #   hosts:
+    #     - grafana.domain
+    #   annotations:
+    #     kubernetes.io/ingress.class: "kong"
+    service:
+      enabled: true
+      type: NodePort
+      port: 80
+      targetPort: 3000
+    adminUser: admin
+    adminPassword: password
+  promtail:
+    enabled: false
+  fluent-bit:
+    enabled: true
+  prometheus:
+    enabled: false

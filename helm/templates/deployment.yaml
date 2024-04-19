@@ -1,0 +1,40 @@
+{{- $dot := . }}
+{{- range $value := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ $value.name }}"
+  namespace: "{{ $value.nameSpace }}"
+  labels:
+    chart: "{{ $dot.Chart.Name }}"
+    version: "{{ $dot.Chart.Version }}"
+spec:
+  selector:
+    matchLabels:
+      app: "{{ $value.name }}"
+      chart: "{{ $dot.Chart.Name }}"
+      version: "{{ $dot.Chart.Version }}"
+  replicas: {{ $value.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: "{{ $value.name }}"
+        chart: "{{ $dot.Chart.Name }}"
+        version: "{{ $dot.Chart.Version }}"
+    spec:
+      containers:
+        - name: "{{ $value.name }}"
+          image: "{{ $value.image.repository }}:{{ $value.image.tag }}"
+          imagePullPolicy: {{ $value.image.pullPolicy }}
+          env:          
+            {{- range $value.env }}
+              - name: {{ .key }}
+                value: {{ .value | quote }}
+            {{- end }}
+            {{- if $value.service }}
+          ports:
+            - containerPort: {{ $value.service.internalPort }}
+            {{- end }}
+      restartPolicy: {{ $value.deployment.restartPolicy }}
+{{- end }}

@@ -1,0 +1,164 @@
+version: "3.8"
+
+services:
+  auth-service:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile.dev
+    restart: on-failure
+    ports:
+      - "9001:9001"
+    env_file:
+      - ./auth/.env.docker
+    networks:
+      - backend
+    volumes:
+      - ./auth:/app/auth
+      - /app/auth/node_modules
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-async: "true"
+    #     fluentd-address: localhost:24224
+    #     tag: auth-service
+
+  post-service:
+    build:
+      context: ./post
+      dockerfile: Dockerfile.dev
+    restart: on-failure
+    ports:
+      - "9002:9002"
+    env_file:
+      - ./post/.env.docker
+    networks:
+      - backend
+    volumes:
+      - ./post:/app/post
+      - /app/post/node_modules
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-async: "true"
+    #     fluentd-address: localhost:24224
+    #     tag: post-service
+
+  files-service:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.dev
+    restart: on-failure
+    ports:
+      - "9003:9003"
+    env_file:
+      - ./files/.env.docker
+    networks:
+      - backend
+    volumes:
+      - ./files:/app/files
+      - /app/files/node_modules
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-async: "true"
+    #     fluentd-address: localhost:24224
+    #     tag: files-service
+
+  notification-service:
+    build:
+      context: ./notification
+      dockerfile: Dockerfile.dev
+    restart: on-failure
+    ports:
+      - "9004:9004"
+    env_file:
+      - ./notification/.env.docker
+    networks:
+      - backend
+    volumes:
+      - ./notification:/app/notification
+      - /app/notification/node_modules
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-async: "true"
+    #     fluentd-address: localhost:24224
+    #     tag: notification-service
+
+  kong:
+    build:
+      context: ./kong
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8443:8443"
+    networks:
+      - backend
+    logging:
+      driver: fluentd
+      options:
+        fluentd-async: "true"
+        fluentd-address: localhost:24224
+        tag: kong
+
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=master123
+      - POSTGRES_DB=postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=master123
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+    networks:
+      - backend
+
+  redis:
+    image: redis:latest
+    restart: always
+    command: redis-server --save 20 1 --loglevel warning --requirepass master123
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  pg_data:
+    driver: local
+  rabbit_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
